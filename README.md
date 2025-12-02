@@ -1,36 +1,59 @@
 # Local PDM/PLM Inventory Tool
 
-A local-only CLI utility for indexing SolidWorks PDM and Aras Innovator PLM files, cross-referencing them against local drives, and running read-only PeopleSoft/Denodo queries.
+A local-only CLI utility for indexing SolidWorks PDM (via mapped drives) and Aras/Enovia-style PLM (via browser automation), cross-referencing remote files against your local filesystem, and running read-only PeopleSoft/Denodo queries.
 
-## Features
+> **Status:** Prototype. PDM indexing and JSON output work end-to-end. PLM scraping is still mocked and must be wired to your real PLM UI before this is production-usable.
 
-- **PDM Indexing**: Scan mapped PDM drives and capture file metadata (name, path, dates)
-- **PLM Scraping**: Selenium-based web scraping with configurable selectors for any PLM UI
-- **Presence Checking**: Cross-reference remote PLM files against local filesystem
-- **PeopleSoft Search**: Run read-only SQL queries via Denodo ODBC
-- **Local Search**: Search indexed inventory by filename or path
+## Features (Current vs Planned)
 
-## Prerequisites
+- **PDM Indexing (working)**  
+  Scan configured roots (e.g., mapped PDM vault drives) and capture file metadata (name, local path, relative path, size, timestamps).
+- **PLM Scraping (scaffolded, mocked)**  
+  Selenium-based login + scan scaffolding; currently yields mock PLM items. You must add site-specific selectors and traversal logic for your PLM.
+- **Presence Checking (basic)**  
+  Cross-reference PLM items against PDM by relative path / filename; outputs `present_locally: true/false` and aggregate match/miss stats.
+- **PeopleSoft Search (working)**  
+  Run read-only SQL via Denodo/ODBC; blocks write operations.
+- **Local Search (working)**  
+  Search the generated inventory JSON by name or path.
 
-- Python 3.10+ with `pip install -r requirements.txt`
-- Chrome/Chromium browser (for PLM scraping)
-- Chromedriver in `bin/` directory or on PATH
-- pyodbc and configured Denodo DSN (for PeopleSoft queries)
-- Windows environment (for PDM mapped drives)
+## Runtime Requirements
+
+You will need, on the machine where you run this:
+
+- **OS**
+  - Windows 10/11 (64-bit), with access to:
+    - Mapped PDM vault drives (e.g., `Z:\Vault\...`)
+    - Network paths / archive drives you care about.
+- **Python**
+  - Python 3.10+ installed and on `PATH`.
+- **Browser + Driver for PLM**
+  - Google Chrome or Microsoft Edge installed.
+  - Matching `chromedriver`/`msedgedriver` either:
+    - Placed in the local `bin/` directory in this repo (recommended), or
+    - Available on `PATH` (less portable if installs are blocked).
+- **ODBC / Denodo**
+  - `pyodbc` Python package (installed via `requirements.txt`).
+  - A configured ODBC DSN that points at Denodo/PeopleSoft (for example `DenodoODBC`), created via the Windows ODBC Data Sources tool.
+  - Network access from your machine to the Denodo/PeopleSoft endpoint.
+- **Network Access**
+  - Ability to reach your PLM web server from the machine and browser you use for scraping.
 
 ## Installation
 
-```bash
-# Clone and install dependencies
-pip install -r requirements.txt
+From the project root:
 
-# Copy and configure settings
+```bash
+# 1) Create virtualenv and install Python deps
+make install
+
+# 2) Copy and configure settings
 cp config/settings.example.json config/settings.json
 ```
 
 ## Configuration
 
-Edit `config/settings.json`:
+Then edit `config/settings.json`:
 
 ```json
 {
@@ -42,8 +65,7 @@ Edit `config/settings.json`:
     "username": "",
     "password": "",
     "headless": false,
-    "start_path": "/",
-    "selectors": { ... }
+    "save_cookies": false
   },
   "peoplesoft": {
     "connection_string": "DSN=DenodoODBC;UID=user",
@@ -55,23 +77,18 @@ Edit `config/settings.json`:
 }
 ```
 
-### PLM Selectors
+> **Security note:** leave `plm.username` and `plm.password` empty in config and let the tool prompt you at runtime. This avoids storing credentials on disk. The example file is intentionally blank.
 
-The PLM scraper uses configurable CSS/XPath selectors. Each selector key accepts comma-separated fallbacks:
+### What Works Today vs What You Must Wire Up
 
-| Key | Purpose | Default |
-|-----|---------|---------|
-| `login_form` | Login form container | `form#login, form[name='login']` |
-| `username_field` | Username input | `input[name='username'], input#username` |
-| `password_field` | Password input | `input[type='password']` |
-| `login_button` | Submit button | `button[type='submit'], #loginBtn` |
-| `logged_in_indicator` | Element proving logged-in state | `.user-profile, .logout-btn` |
-| `main_grid` | File list table/grid | `#mainGrid, .search-grid, table.aras-grid` |
-| `grid_rows` | Individual file rows | `tr.grid-row, tr[data-id], tbody tr` |
-| `item_name` | File name cell | `.item-name, [data-field='name']` |
-| `next_page` | Pagination next button | `.next-page, a[rel='next']` |
-
-Override any selector in your `settings.json` to match your PLM's DOM structure.
+- **Works today**
+  - PDM indexing over large directory trees (streamed to JSON).
+  - Inventory writing with summary stats (`total_pdm`, `total_plm`, `matched`, `missing_locally`).
+  - Local search and PeopleSoft/Denodo queries.
+- **You must still wire up before this is “real”**
+  - PLM login selectors and traversal in `src/indexer/plm.py` (currently uses mock data).
+  - Confirm chromedriver/Edge driver is present and matches your browser version.
+  - Validate Denodo/PeopleSoft DSN and permissions for your account.
 
 ## Usage
 
@@ -161,11 +178,26 @@ The inventory JSON contains:
 
 ## PLM Scraping Setup
 
-1. **First run**: Set `headless: false` in config to watch the browser
-2. **Inspect DOM**: Use browser DevTools to find correct selectors for your PLM
-3. **Update selectors**: Add site-specific selectors to `config/settings.json`
-4. **Handle MFA**: On first login, complete MFA manually; use `--save-cookies` to persist session
-5. **Production**: Once working, set `headless: true` for unattended runs
+The PLM indexer is scaffolded but intentionally conservative. To make it talk to your real PLM:
+
+1. **Run interactively once**
+   - Set `"headless": false` in `config/settings.json`.
+   - Run `python -m src.cli.main index --plm-only --force`.
+   - A browser window should open at `plm.url`.
+2. **Implement login DOM interactions**
+   - Open `src/indexer/plm.py` and update `PLMIndexer.login()`:
+     - Uncomment and adapt the `WebDriverWait(...).until(...)` and `find_element(...).send_keys(...)` lines to match your login page (username field, password field, submit button).
+     - If you have MFA, leave enough `self._random_sleep()` time to enter the code manually on first run.
+3. **Implement scan logic**
+   - Replace the `mock_files` block in `PLMIndexer.scan()` with:
+     - Navigation to the main search/list view.
+     - A loop over rows/cards representing files.
+     - For each row, extract `name`, logical `remote_path` (e.g., `/Vault/Folder/Subfolder`), and any stable `remote_id`.
+     - Optional: follow pagination (next-page button) until no further pages exist.
+4. **Test small**
+   - Run with `--plm-only --dry-run -v` and add debug logging until you see realistic PLM items being yielded.
+5. **Enable cookie reuse (optional)**
+   - If allowed by policy, add `--save-cookies` once so a long-lived session can be reused on subsequent runs without re-entering MFA.
 
 ### Troubleshooting PLM Scraping
 
@@ -202,17 +234,16 @@ This codebase was developed with AI assistance. Here are key points for traditio
 
 - **Generator-based streaming**: `PDMIndexer.scan()` and `PLMIndexer.scan()` yield items one at a time to handle 20TB+ vaults without memory issues
 - **Context managers**: `InventoryWriter` uses `__enter__`/`__exit__` for safe file handling
-- **Selector fallbacks**: PLM selectors use comma-separated CSS selectors tried in order
 - **Defensive error handling**: Stale element exceptions, timeouts, and partial failures are caught and logged
 
 ### Extending the PLM Scraper
 
 To add support for a new PLM system:
 
-1. Create a new selector profile in `DEFAULT_SELECTORS` or override via config
-2. If the PLM uses iframes, add frame-switching logic in `_find_element()`
-3. For AJAX-heavy UIs, increase `wait_timeout` and add explicit waits
-4. For non-standard auth (SAML, OAuth), extend `login()` with redirect handling
+1. Copy and adapt the Selenium element-finding calls inside `PLMIndexer.login()` and `PLMIndexer.scan()` to your PLM’s DOM.
+2. If the PLM uses iframes, add `driver.switch_to.frame(...)` calls before locating elements.
+3. For AJAX-heavy UIs, increase waits (e.g., `WebDriverWait(..., timeout=20)`) and wait on specific row/table locators.
+4. For non-standard auth (SAML, OAuth), extend `login()` to follow redirects and only save cookies once fully authenticated.
 
 ### Testing Locally
 
@@ -231,7 +262,7 @@ python -c "from src.indexer.plm import PLMIndexer; p = PLMIndexer({'url': '...',
 | Add new CLI flag | `src/cli/main.py` | `main()` argparse setup |
 | Change output schema | `src/storage/inventory.py` | `InventoryWriter.add_item()` |
 | Add new filter type | `src/cli/main.py` | `apply_filters()` closure |
-| Support new PLM | `src/indexer/plm.py` | Update `DEFAULT_SELECTORS` |
+| Support new PLM | `src/indexer/plm.py` | Edit `PLMIndexer.login()` / `scan()` |
 | Add presence matching logic | `src/cli/main.py` | Lines 184-200 |
 
 ### Dependencies
