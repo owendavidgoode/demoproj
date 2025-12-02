@@ -39,6 +39,14 @@ You will need, on the machine where you run this:
 - **Network Access**
   - Ability to reach your PLM web server from the machine and browser you use for scraping.
 
+## Quick Start (PDM-only)
+
+1. `make install`
+2. `cp config/settings.example.json config/settings.json`
+3. Set `"pdm.roots"` in `config/settings.json` to your mapped vault paths (e.g., `Z:\\Vault`).
+4. Run `python -m src.cli.main index --pdm-only --force` to build `inventory.json` locally.
+5. Re-run with `--dry-run` any time you want to check changes without writing output.
+
 ## Installation
 
 From the project root:
@@ -144,6 +152,14 @@ python -m src.cli.main search-local "part123"
 | `--date-from` | Filter from date (ISO format) |
 | `--date-to` | Filter to date (ISO format) |
 | `--prompt-creds` | Prompt for PeopleSoft credentials |
+
+## Development
+
+- `make dev` — show CLI help (runs inside the venv).
+- `make test` — run pytest suite in `tests/`.
+- `make lint` — install and run Ruff over `src/` and `tests/`.
+- `make build` — create `dist/local-inventory-tool.zip` with source + config template.
+- `make clean` — drop venv, build artifacts, and `__pycache__` directories.
 
 ## Output Format
 
