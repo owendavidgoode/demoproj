@@ -1,0 +1,9 @@
+.git2/
+.claude/
+.deploy_keys/
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.local
+.DS_Store

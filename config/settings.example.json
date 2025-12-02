@@ -1,0 +1,36 @@
+{
+  "pdm": {
+    "roots": ["Z:\\Vault\\Designs", "C:\\Local\\Archive"]
+  },
+  "plm": {
+    "url": "https://plm.example.com/innovator",
+    "username": "",
+    "password": "",
+    "headless": false,
+    "start_path": "/",
+    "wait_timeout": 10,
+    "page_load_timeout": 30,
+    "selectors": {
+      "login_form": "form#login, form[name='login'], #loginForm",
+      "username_field": "input[name='username'], input#username",
+      "password_field": "input[type='password'], input#password",
+      "login_button": "button[type='submit'], #loginBtn",
+      "logged_in_indicator": ".user-profile, .logout-btn, a[href*='logout']",
+      "toc_container": "#navPanel, .navigation-panel, .toc-tree",
+      "toc_folder_items": ".toc-item, .tree-node, li[data-itemtype]",
+      "main_grid": "#mainGrid, .search-grid, table.aras-grid",
+      "grid_rows": "tr.grid-row, tr[data-id], tbody tr:not(.header)",
+      "grid_cell": "td, .grid-cell",
+      "item_name": ".item-name, [data-field='name'], td[data-col='name']",
+      "item_id": "[data-field='id'], td[data-col='id'], [data-id]",
+      "next_page": ".next-page, .pagination-next, a[rel='next']"
+    }
+  },
+  "peoplesoft": {
+    "connection_string": "DSN=DenodoODBC;UID=user",
+    "query_timeout": 30
+  },
+  "output": {
+    "path": "inventory.json"
+  }
+}
