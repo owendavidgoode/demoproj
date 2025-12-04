@@ -6,7 +6,7 @@ A local-only CLI for indexing SolidWorks PDM and archive drives, wrapping People
 
 ## Features (Current Core v1 vs Planned v2+)
 
-- **PDM + archive indexing (mapped drives + network paths) [basic, needs improvement]**
+- **PDM + archive indexing (mapped drives + network paths) [basic, needs improvement]**  
   Needs to index mapped drives that are not tied into the PDM Vaults.  
   Needs to index sharepoint files where the user has selected to "Always keep on this device".
   Needs to leverage PDM desktop app search (Currently only indexes files cached in system memory, does not look at PDM Cloud). Prefer to transistion over to running legitimate PDM app searches from Search Tool UI.  
