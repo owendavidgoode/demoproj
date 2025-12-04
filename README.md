@@ -1,21 +1,47 @@
-# Local PDM/PLM Inventory Tool
+# Local Engineering Inventory Tool (v1)
 
-A local-only CLI utility for indexing SolidWorks PDM (via mapped drives) and Aras/Enovia-style PLM (via browser automation), cross-referencing remote files against your local filesystem, and running read-only PeopleSoft/Denodo queries.
+A local-only CLI for indexing SolidWorks PDM and archive drives, wrapping PeopleSoft/Denodo part searches, and giving a unified view of “where is this part / file” across your environment.
 
-> **Status:** Prototype. PDM indexing and JSON output work end-to-end. PLM scraping is still mocked and must be wired to your real PLM UI before this is production-usable.
+> **v1 Status:** Prototype. Production-intent for PDM + archive + PeopleSoft search; PLM scraping is experimental and out of scope for v1.
 
-## Features (Current vs Planned)
+## Features (Current Core v1 vs Planned v2+)
 
-- **PDM Indexing (working)**  
-  Scan configured roots (e.g., mapped PDM vault drives) and capture file metadata (name, local path, relative path, size, timestamps).
-- **PLM Scraping (scaffolded, mocked)**  
-  Selenium-based login + scan scaffolding; currently yields mock PLM items. You must add site-specific selectors and traversal logic for your PLM.
-- **Presence Checking (basic)**  
-  Cross-reference PLM items against PDM by relative path / filename; outputs `present_locally: true/false` and aggregate match/miss stats.
-- **PeopleSoft Search (working)**  
-  Run read-only SQL via Denodo/ODBC; blocks write operations.
-- **Local Search (working)**  
-  Search the generated inventory JSON by name or path.
+- **PDM + archive indexing (mapped drives + network paths) [basic, needs improvement]**
+  Needs to index mapped drives that are not tied into the PDM Vaults.  
+  Needs to index sharepoint files where the user has selected to "Always keep on this device".
+  Needs to leverage PDM desktop app search (Currently only indexes files cached in system memory, does not look at PDM Cloud). Prefer to transistion over to running legitimate PDM app searches from Search Tool UI.  
+- **JSON inventory output + summary stats [basic, needs improvement]**
+  Based entirely off indexed searches.
+- **Local search over inventory JSON [working, may require re-evaluation]**
+  Based entirely off indexed searches.
+- **PeopleSoft/Denodo search wrapper (read-only) [working, though sql table selections may need re-evaluation]**  
+  User can run basic wildcard searches to find company/mfg part numbers.
+  User can search for multiple part numbers at once (SQL IN type statement) with search syntax.
+  User can see item inventory levels in selected business units as well as relevant part information.
+- **User can open searched files from UI [working]**  
+  Provide User options in a right-click drop down that allows them to open the file, go to the file location, etc...
+- **Right-click PeopleSoft/Denodo part numbers to perform file search [basic, needs work]**  
+  Take the part/item number and run a file search. Only finds files that have the part number in the file name or description.
+- **Right-click the searched file name and search Peoplesoft/Denodo for inventory [basic, needs work]**  
+  Take the file name or file description, remove the file extension type, then run the Peoplesoft/Denodo search. Only works if file name or description has a part number.
+- **User can upload csv exports of boms from PDM to search for bom availability [basic, needs work]**  
+  Take list of part numbers and bring them into a SQL IN() type statement, then search. Output is to maintain BOM order and also include part numbers and their respective descriptions that did not return results.
+
+## v1 Definition of Done
+
+- **PDM + archive index completes against 10–20 TB without crashing, with resumable checkpoints.**
+- **Search-local returns correct hits from inventory JSON with filters (extension, path prefix, date).**
+- **Search-ps runs read-only Denodo/PeopleSoft queries safely, with basic SQL write-blocking.**
+- **CLI has clear errors, --dry-run, and does not destroy or move user data.**
+- **Basic tests for indexing, JSON schema, and CLI argument validation pass (make test).**
+ 
+## Experimental / future (v2+) (Not required for v1)
+
+- **PLM scraping via Selenium [on-hold]**  
+  Via Enovia PLM online. Lots of information here, like the mapped archived drives, things get tucked away and forgotten here. 
+- **Cross-referencing PLM items against PDM [on-hold]**  
+  If something has been migrated to PLM it is now the authority in terms of revision control. We need to be able to quickly check whether an older part has been migrated so we can pivot appropriately.
+- **Anything SpiderIDE / headless-browser related**
 
 ## Runtime Requirements
 
